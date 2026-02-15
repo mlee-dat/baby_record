@@ -38,6 +38,9 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
+            openai_key = os.environ.get('OPENAI_API_KEY')
+            google_creds_json = os.environ.get('GOOGLE_CREDENTIALS')
+
             # Get content length safely
             content_length = self.headers.get('content-length')
             if not content_length:
@@ -55,7 +58,7 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             # Initialize OpenAI client
-            client = OpenAI(api_key=self.openai_key, base_url="https://ai-gateway.vercel.sh/v1")
+            client = OpenAI(api_key=openai_key, base_url="https://ai-gateway.vercel.sh/v1")
 
             # Get structured response from LLM
             completion = client.chat.completions.create(
@@ -71,7 +74,7 @@ class handler(BaseHTTPRequestHandler):
             ai_data = json.loads(completion.choices[0].message.content)
 
             # Initialize Google Sheets
-            creds_dict = json.loads(self.google_creds_json)
+            creds_dict = json.loads(google_creds_json)
             gc = gspread.service_account_from_dict(creds_dict)
             sh = gc.open("jihoo").sheet1
 
