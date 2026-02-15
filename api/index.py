@@ -71,7 +71,21 @@ class handler(BaseHTTPRequestHandler):
                 response_format=RESPONSE_FORMAT
             )
 
-            ai_data = json.loads(completion.choices[0].message.content)
+            content = completion.choices[0].message.content
+            # Debug: log the raw response
+            print(f"LLM Response: {content}")
+
+            ai_data = json.loads(content)
+
+            # Handle structured output that returns the schema wrapper
+            if 'properties' in ai_data and isinstance(ai_data.get('properties'), dict):
+                # Extract actual values from the properties
+                props = ai_data['properties']
+                ai_data = {
+                    'type': props.get('type', ''),
+                    'amount': props.get('amount', ''),
+                    'memo': props.get('memo', '')
+                }
 
             # Initialize Google Sheets
             creds_dict = json.loads(google_creds_json)
