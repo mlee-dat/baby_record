@@ -83,43 +83,40 @@ memo: 추가 메모
 
     def handle_query(self, client, gc, user_input, intent_data):
         """Handle querying existing records"""
-        activity_type = intent_data.get('activity_type', '')
-
         # Fetch recent records from sheet
         sh = gc.open("jihoo").sheet1
         all_records = sh.get_all_records()  # Uses headers: time, type, value, memo
 
         print(f"=== QUERY DEBUG ===")
         print(f"User input: {user_input}")
-        print(f"Intent data: {intent_data}")
-        print(f"Activity type filter: '{activity_type}'")
-        print(f"Total records: {len(all_records)}")
+        print(f"Total records in sheet: {len(all_records)}")
 
-        # Get all unique types for debugging
-        unique_types = set(r.get('type', '') for r in all_records)
-        print(f"Available types in sheet: {unique_types}")
+        # Get last 50 records (no type filtering - let LLM figure it out)
+        recent = all_records[-50:] if len(all_records) > 50 else all_records
+        print(f"Sending {len(recent)} records to LLM")
 
-        # Filter by activity type if specified
-        if activity_type:
-            filtered = [r for r in all_records if r.get('type', '') == activity_type]
-            print(f"Filtered to {len(filtered)} records")
-        else:
-            filtered = all_records
-            print(f"No filter, using all {len(filtered)} records")
+        # Format as table for better structure
+        # Calculate column widths for alignment
+        max_time_len = max(len(r.get('time', '')) for r in recent) if recent else 10
+        max_type_len = max(len(r.get('type', '')) for r in recent) if recent else 4
+        max_value_len = max(len(r.get('value', '')) for r in recent) if recent else 5
+        max_memo_len = max(len(r.get('memo', '')) for r in recent) if recent else 4
 
-        if not filtered:
-            return f"{activity_type} 기록이 없습니다."
+        # Build table
+        table_lines = []
+        table_lines.append(f"{'시간':<{max_time_len}} | {'종류':<{max_type_len}} | {'양':<{max_value_len}} | {'메모':<{max_memo_len}}")
+        table_lines.append("-" * (max_time_len + max_type_len + max_value_len + max_memo_len + 9))
 
-        # Get last few records (most recent at the end)
-        recent = filtered[-10:] if len(filtered) > 10 else filtered
+        for r in recent:
+            time = r.get('time', '')
+            type_ = r.get('type', '')
+            value = r.get('value', '')
+            memo = r.get('memo', '')
+            table_lines.append(f"{time:<{max_time_len}} | {type_:<{max_type_len}} | {value:<{max_value_len}} | {memo:<{max_memo_len}}")
 
-        # Format records for LLM
-        records_text = "\n".join([
-            f"- {r.get('time', '')}: {r.get('type', '')} {r.get('value', '')} {r.get('memo', '')}"
-            for r in recent
-        ])
+        records_table = "\n".join(table_lines)
 
-        print(f"Records for LLM:\n{records_text}")
+        print(f"Records table:\n{records_table}")
 
         # Ask LLM to generate natural response
         completion = client.chat.completions.create(
@@ -127,12 +124,10 @@ memo: 추가 메모
             messages=[
                 {
                     "role": "system",
-                    "content": f"""당신은 육아 도우미입니다. 사용자의 질문에 따라 다음 기록을 바탕으로 자연스러운 한국어로 답변하세요.
+                    "content": f"""당신은 육아 도우미입니다. 다음 최근 기록을 참고하여 사용자의 질문에 자연스러운 한국어로 답변하세요.
 
-기록 형식: 시간 / 종류 / 양 / 메모
-
-최근 기록:
-{records_text}
+최근 기록 (최신 순):
+{records_table}
 
 답변은 간결하고 친근하게 하세요. 시간은 읽기 쉽게 변환하세요."""
                 },
