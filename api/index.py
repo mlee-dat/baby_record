@@ -64,7 +64,7 @@ class handler(BaseHTTPRequestHandler):
             completion = client.chat.completions.create(
                 model="openai/gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "Parse baby care activity into structured data"},
+                    {"role": "system", "content": "Parse baby care activity into structured data. Always return values in Korean. For example: 수면, 분유, 모유, 기저귀. For amounts, use Korean format like '2시간', '170ml', '20분'."},
                     {"role": "user", "content": user_input}
                 ],
                 stream=False,
@@ -134,7 +134,7 @@ def test_connections(openai_key, google_creds_json):
         completion = client.chat.completions.create(
             model="openai/gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "Parse baby care activity into structured data"},
+                {"role": "system", "content": "Parse baby care activity into structured data. Always return values in Korean. For example: 수면, 분유, 모유, 기저귀. For amounts, use Korean format like '2시간', '170ml', '20분'."},
                 {"role": "user", "content": "아기가 분유 170ml 먹었어"}
             ],
             stream=False,
