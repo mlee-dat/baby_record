@@ -87,25 +87,39 @@ memo: 추가 메모
 
         # Fetch recent records from sheet
         sh = gc.open("jihoo").sheet1
-        all_records = sh.get_all_records()
+        all_records = sh.get_all_records()  # Uses headers: time, type, value, memo
+
+        print(f"=== QUERY DEBUG ===")
+        print(f"User input: {user_input}")
+        print(f"Intent data: {intent_data}")
+        print(f"Activity type filter: '{activity_type}'")
+        print(f"Total records: {len(all_records)}")
+
+        # Get all unique types for debugging
+        unique_types = set(r.get('type', '') for r in all_records)
+        print(f"Available types in sheet: {unique_types}")
 
         # Filter by activity type if specified
         if activity_type:
-            filtered = [r for r in all_records if r.get('종류', '') == activity_type]
+            filtered = [r for r in all_records if r.get('type', '') == activity_type]
+            print(f"Filtered to {len(filtered)} records")
         else:
             filtered = all_records
+            print(f"No filter, using all {len(filtered)} records")
 
         if not filtered:
             return f"{activity_type} 기록이 없습니다."
 
         # Get last few records (most recent at the end)
-        recent = filtered[-5:] if len(filtered) > 5 else filtered
+        recent = filtered[-10:] if len(filtered) > 10 else filtered
 
         # Format records for LLM
         records_text = "\n".join([
-            f"- {r.get('시간', '')}: {r.get('종류', '')} {r.get('값', '')} {r.get('메모', '')}"
+            f"- {r.get('time', '')}: {r.get('type', '')} {r.get('value', '')} {r.get('memo', '')}"
             for r in recent
         ])
+
+        print(f"Records for LLM:\n{records_text}")
 
         # Ask LLM to generate natural response
         completion = client.chat.completions.create(
@@ -115,10 +129,12 @@ memo: 추가 메모
                     "role": "system",
                     "content": f"""당신은 육아 도우미입니다. 사용자의 질문에 따라 다음 기록을 바탕으로 자연스러운 한국어로 답변하세요.
 
+기록 형식: 시간 / 종류 / 양 / 메모
+
 최근 기록:
 {records_text}
 
-답변은 간결하고 친근하게 하세요. 시간은 "오전/오후 N시 M분" 형식으로 읽기 쉽게 변환하세요."""
+답변은 간결하고 친근하게 하세요. 시간은 읽기 쉽게 변환하세요."""
                 },
                 {"role": "user", "content": user_input}
             ]
